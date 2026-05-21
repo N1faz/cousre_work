@@ -21,3 +21,7 @@ C:\Users\USER\source\repos\med\med\obj\Debug\med.csproj.Up2Date
 C:\Users\USER\source\repos\med\med\obj\Debug\med.Form8.resources
 C:\Users\USER\source\repos\med\med\obj\Debug\med.Form9.resources
 C:\Users\USER\source\repos\med\med\obj\Debug\med.Form10.resources
+C:\Users\USER\source\repos\med\med\obj\Debug\med.Form11.resources
+C:\Users\USER\source\repos\med\med\obj\Debug\med.Form12.resources
+C:\Users\USER\source\repos\med\med\obj\Debug\med.Form13.resources
+C:\Users\USER\source\repos\med\med\obj\Debug\med.Form14.resources

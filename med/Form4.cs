@@ -18,6 +18,7 @@ namespace med
             LoadAnimalsList();
         }
 
+        // Загрузка списка животных через VIEW animals_search
         private void LoadAnimalsList()
         {
             try
@@ -29,17 +30,16 @@ namespace med
                     return;
                 }
 
-                // SQL запрос с видом животного (species)
+                // Используем VIEW animals_search
                 string sql = @"
                     SELECT 
                         animal_id AS 'ID',
-                        name AS 'Кличка',
+                        animal_name AS 'Кличка',
                         age AS 'Возраст',
                         breed AS 'Порода',
-                        species AS 'Вид',
-                        owner_id AS 'ID Владельца'
-                    FROM animals
-                    ORDER BY name";
+                        species AS 'Вид'
+                    FROM animals_search
+                    ORDER BY animal_name";
 
                 using (var cmd = new SQLiteCommand(sql, Program.DatabaseConnection))
                 {
@@ -126,7 +126,7 @@ namespace med
             SearchBySpecies(textBox1.Text);
         }
 
-        // Метод поиска по ВИДУ животного (species)
+        // Метод поиска по ВИДУ животного (species) с использованием VIEW animals_search
         private void SearchBySpecies(string searchText)
         {
             try
@@ -144,18 +144,17 @@ namespace med
                     return;
                 }
 
-                // ЭТОТ ЗАПРОС АВТОМАТИЧЕСКИ ИСПОЛЬЗУЕТ ИНДЕКС idx_animals_species
+                // Используем VIEW animals_search для поиска по виду
                 string sql = @"
-            SELECT 
-                animal_id AS 'ID',
-                name AS 'Кличка',
-                age AS 'Возраст',
-                breed AS 'Порода',
-                species AS 'Вид',
-                owner_id AS 'ID Владельца'
-            FROM animals
-            WHERE LOWER(species) LIKE LOWER(@species)
-            ORDER BY name";
+                    SELECT 
+                        animal_id AS 'ID',
+                        animal_name AS 'Кличка',
+                        age AS 'Возраст',
+                        breed AS 'Порода',
+                        species AS 'Вид'
+                    FROM animals_search
+                    WHERE LOWER(species) LIKE LOWER(@species)
+                    ORDER BY animal_name";
 
                 using (var cmd = new SQLiteCommand(sql, Program.DatabaseConnection))
                 {
@@ -179,7 +178,7 @@ namespace med
             }
         }
 
-        // Метод для загрузки всех животных
+        // Метод для загрузки всех животных через VIEW animals_search
         private void LoadAllAnimals()
         {
             try
@@ -187,13 +186,12 @@ namespace med
                 string sql = @"
                     SELECT 
                         animal_id AS 'ID',
-                        name AS 'Кличка',
+                        animal_name AS 'Кличка',
                         age AS 'Возраст',
                         breed AS 'Порода',
-                        species AS 'Вид',
-                        owner_id AS 'ID Владельца'
-                    FROM animals
-                    ORDER BY name";
+                        species AS 'Вид'
+                    FROM animals_search
+                    ORDER BY animal_name";
 
                 using (var cmd = new SQLiteCommand(sql, Program.DatabaseConnection))
                 {
@@ -211,6 +209,59 @@ namespace med
             catch (Exception ex)
             {
                 MessageBox.Show($"Ошибка: {ex.Message}");
+            }
+        }
+
+        // Поиск по фамилии владельца (дополнительная функция)
+        private void SearchByOwnerLastName(string searchText)
+        {
+            try
+            {
+                if (Program.DatabaseConnection == null || Program.DatabaseConnection.State != ConnectionState.Open)
+                {
+                    MessageBox.Show("Подключение к базе данных не установлено!", "Ошибка",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
+
+                if (string.IsNullOrWhiteSpace(searchText))
+                {
+                    LoadAllAnimals();
+                    return;
+                }
+
+                // Поиск по фамилии владельца через VIEW animals_search
+                string sql = @"
+                    SELECT 
+                        animal_id AS 'ID',
+                        animal_name AS 'Кличка',
+                        age AS 'Возраст',
+                        breed AS 'Порода',
+                        species AS 'Вид',
+                        owner_last_name || ' ' || owner_first_name || ' ' || COALESCE(owner_middle_name, '') AS 'Владелец'
+                    FROM animals_search
+                    WHERE LOWER(owner_last_name) LIKE LOWER(@owner_last_name)
+                    ORDER BY animal_name";
+
+                using (var cmd = new SQLiteCommand(sql, Program.DatabaseConnection))
+                {
+                    cmd.Parameters.AddWithValue("@owner_last_name", $"%{searchText}%");
+
+                    DataTable dt = new DataTable();
+                    using (var adapter = new SQLiteDataAdapter(cmd))
+                    {
+                        adapter.Fill(dt);
+                    }
+
+                    dataGridView1.DataSource = dt;
+                    dataGridView1.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+                    dataGridView1.ReadOnly = true;
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка при поиске: {ex.Message}", "Ошибка",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -238,7 +289,7 @@ namespace med
                 return;
             }
 
-            Form10 newForm = new Form10();
+            Form11 newForm = new Form11();
             this.Hide();
             newForm.Show();
         }

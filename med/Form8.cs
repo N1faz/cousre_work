@@ -71,7 +71,7 @@ namespace med
                             // Обновляем время последнего входа
                             try
                             {
-                                string updateSql = "UPDATE users SET last_login = datetime('now') WHERE user_id = @userId";
+                                string updateSql = "UPDATE users SET created_at = datetime('now') WHERE user_id = @userId";
                                 using (var updateCmd = new SQLiteCommand(updateSql, Program.DatabaseConnection))
                                 {
                                     updateCmd.Parameters.AddWithValue("@userId", userId);
@@ -83,10 +83,21 @@ namespace med
                             MessageBox.Show($"Добро пожаловать, {username}!\nВаша роль: {role}", "Успех",
                                 MessageBoxButtons.OK, MessageBoxIcon.Information);
 
-                            // Перенаправление на Form4
-                            Form4 mainForm = new Form4();
-                            mainForm.Show();
-                            this.Hide();
+                            // ПЕРЕНАПРАВЛЕНИЕ В ЗАВИСИМОСТИ ОТ РОЛИ
+                            if (role == "admin")
+                            {
+                                // Если админ - переходим на Form14
+                                Form14 adminForm = new Form14();
+                                adminForm.Show();
+                                this.Hide();
+                            }
+                            else
+                            {
+                                // Если не админ - переходим на Form4
+                                Form4 mainForm = new Form4();
+                                mainForm.Show();
+                                this.Hide();
+                            }
                         }
                         else
                         {

@@ -41,9 +41,9 @@
             this.label1.Font = new System.Drawing.Font("Microsoft Sans Serif", 19.8F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.label1.Location = new System.Drawing.Point(302, 9);
             this.label1.Name = "label1";
-            this.label1.Size = new System.Drawing.Size(847, 38);
+            this.label1.Size = new System.Drawing.Size(653, 38);
             this.label1.TabIndex = 2;
-            this.label1.Text = "Подробная информация про животное (по щелчку)";
+            this.label1.Text = "Подробная информация про животное ";
             this.label1.Click += new System.EventHandler(this.label1_Click);
             // 
             // label2

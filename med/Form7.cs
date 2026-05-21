@@ -17,8 +17,8 @@ namespace med
         private void Form7_Load(object sender, EventArgs e)
         {
             LoadAnimalsData();
-            LoadTotalAppointmentsCount();
-            textBox2.Text = "0"; // Начальное значение
+            LoadTotalAppointmentsCount();  // Использует VIEW
+            textBox2.Text = "0";
         }
 
         // 1. Загрузка животных в dataGridView1
@@ -45,7 +45,6 @@ namespace med
                     dataGridView1.ReadOnly = true;
                     dataGridView1.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
 
-                    // Скрываем колонку animal_id
                     if (dataGridView1.Columns["animal_id"] != null)
                         dataGridView1.Columns["animal_id"].Visible = false;
                 }
@@ -64,14 +63,14 @@ namespace med
                 DataGridViewRow selectedRow = dataGridView1.Rows[e.RowIndex];
                 int animalId = Convert.ToInt32(selectedRow.Cells["animal_id"].Value);
 
-                LoadDiagnosisData(animalId);           // Диагноз в dataGridView2
-                LoadConsultationDateData(animalId);    // Дата консультации в dataGridView3
-                LoadDoctorData(animalId);              // Врач в dataGridView4
-                LoadSelectedAnimalAppointmentsCount(animalId); // Количество приемов в textBox2
+                LoadDiagnosisData(animalId);
+                LoadConsultationDateData(animalId);
+                LoadDoctorData(animalId);
+                LoadSelectedAnimalAppointmentsCount(animalId); // Использует VIEW
             }
         }
 
-        // Метод для подсчета количества приемов выбранного животного
+        // Метод для подсчета количества приемов выбранного животного (через VIEW)
         private void LoadSelectedAnimalAppointmentsCount(int animalId)
         {
             try
@@ -82,17 +81,45 @@ namespace med
                     return;
                 }
 
-                string sql = "SELECT COUNT(*) FROM appointments WHERE animal_id = @animalId";
+                // Используем VIEW animal_appointments_count
+                string sql = "SELECT total_appointments FROM animal_appointments_count WHERE animal_id = @animalId";
                 using (var cmd = new SQLiteCommand(sql, Program.DatabaseConnection))
                 {
                     cmd.Parameters.AddWithValue("@animalId", animalId);
-                    int count = Convert.ToInt32(cmd.ExecuteScalar());
+                    var result = cmd.ExecuteScalar();
+                    int count = result != null ? Convert.ToInt32(result) : 0;
                     textBox2.Text = count.ToString();
                 }
             }
             catch (Exception ex)
             {
                 textBox2.Text = "0";
+            }
+        }
+
+        // Метод для подсчета общего количества приемов (через VIEW)
+        private void LoadTotalAppointmentsCount()
+        {
+            try
+            {
+                if (Program.DatabaseConnection == null || Program.DatabaseConnection.State != ConnectionState.Open)
+                {
+                    textBox1.Text = "Ошибка подключения";
+                    return;
+                }
+
+                // Используем VIEW animal_appointments_count для подсчёта суммы
+                string sql = "SELECT SUM(total_appointments) FROM animal_appointments_count";
+                using (var cmd = new SQLiteCommand(sql, Program.DatabaseConnection))
+                {
+                    var result = cmd.ExecuteScalar();
+                    int total = result != null ? Convert.ToInt32(result) : 0;
+                    textBox1.Text = total.ToString();
+                }
+            }
+            catch (Exception ex)
+            {
+                textBox1.Text = $"Ошибка: {ex.Message}";
             }
         }
 
@@ -204,7 +231,6 @@ namespace med
                     return;
                 }
 
-                // Формируем ФИО врача из раздельных полей last_name, first_name, middle_name
                 string sql = @"
                     SELECT DISTINCT 
                         d.last_name || ' ' || d.first_name || ' ' || COALESCE(d.middle_name, '') AS 'Врач'
@@ -261,34 +287,9 @@ namespace med
             LoadTotalAppointmentsCount();
         }
 
-        // Метод для подсчета общего количества приемов
-        private void LoadTotalAppointmentsCount()
-        {
-            try
-            {
-                if (Program.DatabaseConnection == null || Program.DatabaseConnection.State != ConnectionState.Open)
-                {
-                    textBox1.Text = "Ошибка подключения";
-                    return;
-                }
-
-                string sql = "SELECT COUNT(*) FROM appointments";
-                using (var cmd = new SQLiteCommand(sql, Program.DatabaseConnection))
-                {
-                    int count = Convert.ToInt32(cmd.ExecuteScalar());
-                    textBox1.Text = $"{count}";
-                }
-            }
-            catch (Exception ex)
-            {
-                textBox1.Text = $"Ошибка: {ex.Message}";
-            }
-        }
-
         private void textBox2_TextChanged(object sender, EventArgs e)
         {
-            // Этот метод вызывается при изменении текста в textBox2
-            // Значение обновляется через LoadSelectedAnimalAppointmentsCount
+
         }
     }
 }

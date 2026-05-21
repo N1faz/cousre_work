@@ -11,6 +11,123 @@ namespace med
         public Form10()
         {
             InitializeComponent();
+            this.Load += Form10_Load;
+        }
+
+        private void Form10_Load(object sender, EventArgs e)
+        {
+            // Загружаем список животных в comboBox1
+            LoadAnimalsToComboBox();
+            // Загружаем список врачей в comboBox2
+            LoadDoctorsToComboBox();
+            // Загружаем список вакцин в comboBox3
+            LoadVaccinesToComboBox();
+        }
+
+        // Загрузка списка животных в comboBox1
+        private void LoadAnimalsToComboBox()
+        {
+            try
+            {
+                if (Program.DatabaseConnection == null || Program.DatabaseConnection.State != ConnectionState.Open)
+                {
+                    MessageBox.Show("Подключение к базе данных не установлено!", "Ошибка",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
+
+                string sql = "SELECT animal_id, name FROM animals ORDER BY name";
+                using (var cmd = new SQLiteCommand(sql, Program.DatabaseConnection))
+                {
+                    DataTable dt = new DataTable();
+                    using (var adapter = new SQLiteDataAdapter(cmd))
+                    {
+                        adapter.Fill(dt);
+                    }
+                    comboBox1.DataSource = dt;
+                    comboBox1.DisplayMember = "name";
+                    comboBox1.ValueMember = "animal_id";
+                    comboBox1.SelectedIndex = -1;
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка загрузки животных: {ex.Message}", "Ошибка",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // Загрузка списка врачей в comboBox2 (с ФИО)
+        private void LoadDoctorsToComboBox()
+        {
+            try
+            {
+                if (Program.DatabaseConnection == null || Program.DatabaseConnection.State != ConnectionState.Open)
+                {
+                    MessageBox.Show("Подключение к базе данных не установлено!", "Ошибка",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
+
+                // Формируем ФИО врача из раздельных полей
+                string sql = @"
+                    SELECT 
+                        doctor_id,
+                        last_name || ' ' || first_name || ' ' || COALESCE(middle_name, '') AS full_name
+                    FROM doctors
+                    ORDER BY last_name";
+
+                using (var cmd = new SQLiteCommand(sql, Program.DatabaseConnection))
+                {
+                    DataTable dt = new DataTable();
+                    using (var adapter = new SQLiteDataAdapter(cmd))
+                    {
+                        adapter.Fill(dt);
+                    }
+                    comboBox2.DataSource = dt;
+                    comboBox2.DisplayMember = "full_name";
+                    comboBox2.ValueMember = "doctor_id";
+                    comboBox2.SelectedIndex = -1;
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка загрузки врачей: {ex.Message}", "Ошибка",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // Загрузка списка вакцин в comboBox3
+        private void LoadVaccinesToComboBox()
+        {
+            try
+            {
+                if (Program.DatabaseConnection == null || Program.DatabaseConnection.State != ConnectionState.Open)
+                {
+                    MessageBox.Show("Подключение к базе данных не установлено!", "Ошибка",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
+
+                string sql = "SELECT vaccine_id, name FROM vaccines ORDER BY name";
+                using (var cmd = new SQLiteCommand(sql, Program.DatabaseConnection))
+                {
+                    DataTable dt = new DataTable();
+                    using (var adapter = new SQLiteDataAdapter(cmd))
+                    {
+                        adapter.Fill(dt);
+                    }
+                    comboBox3.DataSource = dt;
+                    comboBox3.DisplayMember = "name";
+                    comboBox3.ValueMember = "vaccine_id";
+                    comboBox3.SelectedIndex = -1;
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка загрузки вакцин: {ex.Message}", "Ошибка",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
         // Кнопка "Добавить вакцинацию"
@@ -62,167 +179,38 @@ namespace med
                 notes = null;
             }
 
-            // ============= 3. ПОИСК ЖИВОТНОГО ПО КЛИЧКЕ (textBox3) =============
-            string animalName = textBox3.Text.Trim();
-            if (string.IsNullOrWhiteSpace(animalName))
+            // ============= 3. ПРОВЕРКА ВЫБОРА ЖИВОТНОГО (comboBox1) =============
+            if (comboBox1.SelectedIndex == -1)
             {
-                MessageBox.Show("Введите кличку животного!", "Ошибка",
+                MessageBox.Show("Выберите животное из списка!", "Ошибка",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                textBox3.Focus();
+                comboBox1.Focus();
                 return;
             }
+            int animalId = Convert.ToInt32(comboBox1.SelectedValue);
+            string animalName = comboBox1.Text;
 
-            // Получаем animal_id по кличке
-            int animalId = -1;
-            string sqlAnimal = "SELECT animal_id FROM animals WHERE name = @name";
-            using (var cmd = new SQLiteCommand(sqlAnimal, Program.DatabaseConnection))
+            // ============= 4. ПРОВЕРКА ВЫБОРА ВРАЧА (comboBox2) =============
+            if (comboBox2.SelectedIndex == -1)
             {
-                cmd.Parameters.AddWithValue("@name", animalName);
-                var result = cmd.ExecuteScalar();
-                if (result == null)
-                {
-                    MessageBox.Show($"Животное с кличкой '{animalName}' не найдено в базе данных!\n" +
-                        "Проверьте правильность написания или сначала добавьте животное.",
-                        "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    textBox3.Focus();
-                    textBox3.SelectAll();
-                    return;
-                }
-                animalId = Convert.ToInt32(result);
-            }
-
-            // ============= 4. ПОИСК ВРАЧА (textBox6 - фамилия, textBox4 - имя, textBox7 - отчество) =============
-            string doctorLastName = textBox6.Text.Trim();   // Фамилия
-            string doctorFirstName = textBox4.Text.Trim();  // Имя
-            string doctorMiddleName = textBox7.Text.Trim(); // Отчество
-
-            if (string.IsNullOrWhiteSpace(doctorLastName))
-            {
-                MessageBox.Show("Введите фамилию врача!", "Ошибка",
+                MessageBox.Show("Выберите врача из списка!", "Ошибка",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                textBox6.Focus();
+                comboBox2.Focus();
                 return;
             }
+            int doctorId = Convert.ToInt32(comboBox2.SelectedValue);
+            string doctorName = comboBox2.Text;
 
-            if (string.IsNullOrWhiteSpace(doctorFirstName))
+            // ============= 5. ПРОВЕРКА ВЫБОРА ВАКЦИНЫ (comboBox3) =============
+            if (comboBox3.SelectedIndex == -1)
             {
-                MessageBox.Show("Введите имя врача!", "Ошибка",
+                MessageBox.Show("Выберите вакцину из списка!", "Ошибка",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                textBox4.Focus();
+                comboBox3.Focus();
                 return;
             }
-
-            // Если отчество не введено, устанавливаем null
-            if (string.IsNullOrWhiteSpace(doctorMiddleName))
-            {
-                doctorMiddleName = null;
-            }
-
-            // Проверяем существование врача
-            int doctorId = -1;
-            string sqlDoctor = @"
-                SELECT doctor_id FROM doctors 
-                WHERE last_name = @last_name 
-                  AND first_name = @first_name 
-                  AND (middle_name = @middle_name OR (middle_name IS NULL AND @middle_name IS NULL))";
-
-            using (var cmd = new SQLiteCommand(sqlDoctor, Program.DatabaseConnection))
-            {
-                cmd.Parameters.AddWithValue("@last_name", doctorLastName);
-                cmd.Parameters.AddWithValue("@first_name", doctorFirstName);
-                cmd.Parameters.AddWithValue("@middle_name", doctorMiddleName);
-                var result = cmd.ExecuteScalar();
-                if (result == null)
-                {
-                    string doctorFullName = $"{doctorLastName} {doctorFirstName} {(string.IsNullOrEmpty(doctorMiddleName) ? "" : doctorMiddleName)}".Trim();
-                    MessageBox.Show($"Врач '{doctorFullName}' не найден в базе данных!\n\n" +
-                        "Проверьте правильность ввода ФИО.",
-                        "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    textBox6.Focus();
-                    return;
-                }
-                doctorId = Convert.ToInt32(result);
-            }
-
-            // ============= 5. ПОИСК ИЛИ СОЗДАНИЕ ВАКЦИНЫ (textBox5) =============
-            string vaccineName = textBox5.Text.Trim();
-            if (string.IsNullOrWhiteSpace(vaccineName))
-            {
-                MessageBox.Show("Введите название вакцины!", "Ошибка",
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                textBox5.Focus();
-                return;
-            }
-
-            // Получаем passport_id животного (нужен для создания вакцины)
-            int passportId = -1;
-            string sqlPassport = "SELECT passport_id FROM vet_passports WHERE animal_id = @animal_id";
-            using (var cmd = new SQLiteCommand(sqlPassport, Program.DatabaseConnection))
-            {
-                cmd.Parameters.AddWithValue("@animal_id", animalId);
-                var result = cmd.ExecuteScalar();
-                if (result != null && result != DBNull.Value)
-                {
-                    passportId = Convert.ToInt32(result);
-                }
-            }
-
-            // Получаем vaccine_id по названию или создаём новую вакцину
-            int vaccineId = -1;
-            string sqlVaccine = "SELECT vaccine_id FROM vaccines WHERE name = @name";
-            using (var cmd = new SQLiteCommand(sqlVaccine, Program.DatabaseConnection))
-            {
-                cmd.Parameters.AddWithValue("@name", vaccineName);
-                var result = cmd.ExecuteScalar();
-                if (result != null)
-                {
-                    vaccineId = Convert.ToInt32(result);
-                }
-                else
-                {
-                    // Вакцина не найдена - создаём новую
-                    if (passportId == -1)
-                    {
-                        MessageBox.Show($"У животного '{animalName}' нет ветеринарного паспорта!\n" +
-                            "Сначала добавьте ветеринарный паспорт для этого животного.",
-                            "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                        return;
-                    }
-
-                    DialogResult createVaccine = MessageBox.Show($"Вакцина '{vaccineName}' не найдена в базе данных.\n\n" +
-                        "Хотите создать новую вакцину с этим названием?",
-                        "Создание новой вакцины",
-                        MessageBoxButtons.YesNo, MessageBoxIcon.Question);
-
-                    if (createVaccine == DialogResult.Yes)
-                    {
-                        string insertVaccine = @"
-                            INSERT INTO vaccines (name, manufacturer, expiry_date, price, purpose, passport_id)
-                            VALUES (@name, @manufacturer, @expiry_date, @price, @purpose, @passport_id);
-                            SELECT last_insert_rowid();";
-
-                        using (var cmdInsert = new SQLiteCommand(insertVaccine, Program.DatabaseConnection))
-                        {
-                            cmdInsert.Parameters.AddWithValue("@name", vaccineName);
-                            cmdInsert.Parameters.AddWithValue("@manufacturer", "Не указан");
-                            cmdInsert.Parameters.AddWithValue("@expiry_date", DateTime.Now.AddYears(1).ToString("yyyy-MM-dd"));
-                            cmdInsert.Parameters.AddWithValue("@price", 0);
-                            cmdInsert.Parameters.AddWithValue("@purpose", "Не указано");
-                            cmdInsert.Parameters.AddWithValue("@passport_id", passportId);
-                            vaccineId = Convert.ToInt32(cmdInsert.ExecuteScalar());
-                        }
-
-                        MessageBox.Show($"✓ Вакцина '{vaccineName}' успешно создана!",
-                            "Информация", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    }
-                    else
-                    {
-                        textBox5.Focus();
-                        textBox5.SelectAll();
-                        return;
-                    }
-                }
-            }
+            int vaccineId = Convert.ToInt32(comboBox3.SelectedValue);
+            string vaccineName = comboBox3.Text;
 
             // ============= 6. ДОБАВЛЕНИЕ ВАКЦИНАЦИИ =============
             try
@@ -259,21 +247,21 @@ namespace med
                     "Вакцинация завершена (дата уже прошла)" :
                     "Вакцинация запланирована (дата в будущем)";
 
-                string doctorFullName = $"{doctorLastName} {doctorFirstName} {(string.IsNullOrEmpty(doctorMiddleName) ? "" : doctorMiddleName)}".Trim();
-
                 MessageBox.Show($"✓ Вакцинация успешно добавлена!\n\n" +
                     $"Дата вакцинации: {vaccinationDate}\n" +
                     $"Животное: {animalName}\n" +
                     $"Вакцина: {vaccineName}\n" +
-                    $"Врач: {doctorFullName}\n" +
+                    $"Врач: {doctorName}\n" +
                     $"Статус: {statusText}\n" +
                     $"Примечания: {(string.IsNullOrEmpty(notes) ? "нет" : notes)}\n\n" +
                     $"[Триггер] {statusMessage}",
                     "Успех",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
 
-                // Очищаем поля после успешного добавления
-                ClearFields();
+                // Переход на Form11 после успешного добавления
+                Form11 form11 = new Form11();
+                this.Hide();
+                form11.Show();
             }
             catch (Exception ex)
             {
@@ -287,11 +275,9 @@ namespace med
         {
             textBox1.Text = "";
             textBox2.Text = "";
-            textBox3.Text = "";
-            textBox4.Text = "";
-            textBox5.Text = "";
-            textBox6.Text = "";
-            textBox7.Text = "";
+            comboBox1.SelectedIndex = -1;
+            comboBox2.SelectedIndex = -1;
+            comboBox3.SelectedIndex = -1;
         }
 
         // Кнопка "Очистить поля"
@@ -311,33 +297,23 @@ namespace med
         // Проверка существования врача (кнопка CheckDoctor)
         private void buttonCheckDoctor_Click(object sender, EventArgs e)
         {
-            string doctorLastName = textBox6.Text.Trim();
-            string doctorFirstName = textBox4.Text.Trim();
-            string doctorMiddleName = textBox7.Text.Trim();
-
-            if (string.IsNullOrWhiteSpace(doctorLastName) || string.IsNullOrWhiteSpace(doctorFirstName))
+            if (comboBox2.SelectedIndex == -1)
             {
-                MessageBox.Show("Введите фамилию и имя врача для проверки!", "Информация",
+                MessageBox.Show("Выберите врача из списка для проверки!", "Информация",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
 
-            if (string.IsNullOrWhiteSpace(doctorMiddleName))
-            {
-                doctorMiddleName = null;
-            }
+            string doctorName = comboBox2.Text;
 
             string sql = @"
                 SELECT doctor_id, last_name, first_name, middle_name, specialization, experience_years 
                 FROM doctors 
-                WHERE last_name = @last_name AND first_name = @first_name 
-                  AND (middle_name = @middle_name OR (middle_name IS NULL AND @middle_name IS NULL))";
+                WHERE last_name || ' ' || first_name || ' ' || COALESCE(middle_name, '') = @full_name";
 
             using (var cmd = new SQLiteCommand(sql, Program.DatabaseConnection))
             {
-                cmd.Parameters.AddWithValue("@last_name", doctorLastName);
-                cmd.Parameters.AddWithValue("@first_name", doctorFirstName);
-                cmd.Parameters.AddWithValue("@middle_name", doctorMiddleName);
+                cmd.Parameters.AddWithValue("@full_name", doctorName);
                 using (var reader = cmd.ExecuteReader())
                 {
                     if (reader.Read())
@@ -345,18 +321,17 @@ namespace med
                         string specialization = reader["specialization"]?.ToString() ?? "не указана";
                         int experience = Convert.ToInt32(reader["experience_years"]);
                         string middleName = reader["middle_name"]?.ToString() ?? "";
-                        string fullName = $"{doctorLastName} {doctorFirstName} {middleName}".Trim();
+                        string fullName = reader["last_name"] + " " + reader["first_name"] + " " + middleName;
 
                         MessageBox.Show($"✓ Врач найден!\n\n" +
-                            $"ФИО: {fullName}\n" +
+                            $"ФИО: {fullName.Trim()}\n" +
                             $"Специализация: {specialization}\n" +
                             $"Стаж: {experience} лет",
                             "Информация", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     }
                     else
                     {
-                        string fullName = $"{doctorLastName} {doctorFirstName} {(string.IsNullOrEmpty(doctorMiddleName) ? "" : doctorMiddleName)}".Trim();
-                        MessageBox.Show($"Врач '{fullName}' не найден!",
+                        MessageBox.Show($"Врач '{doctorName}' не найден!",
                             "Информация", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     }
                 }
@@ -366,13 +341,14 @@ namespace med
         // Проверка существования животного
         private void buttonCheckAnimal_Click(object sender, EventArgs e)
         {
-            string animalName = textBox3.Text.Trim();
-            if (string.IsNullOrWhiteSpace(animalName))
+            if (comboBox1.SelectedIndex == -1)
             {
-                MessageBox.Show("Введите кличку животного для проверки!", "Информация",
+                MessageBox.Show("Выберите животное из списка для проверки!", "Информация",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
+
+            string animalName = comboBox1.Text;
 
             string sql = "SELECT animal_id, name, species, breed, age FROM animals WHERE name = @name";
             using (var cmd = new SQLiteCommand(sql, Program.DatabaseConnection))
@@ -398,16 +374,17 @@ namespace med
             }
         }
 
-        // Проверка существования вакцины (обновлена с учетом создания)
+        // Проверка существования вакцины
         private void buttonCheckVaccine_Click(object sender, EventArgs e)
         {
-            string vaccineName = textBox5.Text.Trim();
-            if (string.IsNullOrWhiteSpace(vaccineName))
+            if (comboBox3.SelectedIndex == -1)
             {
-                MessageBox.Show("Введите название вакцины для проверки!", "Информация",
+                MessageBox.Show("Выберите вакцину из списка для проверки!", "Информация",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
+
+            string vaccineName = comboBox3.Text;
 
             string sql = "SELECT vaccine_id, name, manufacturer, purpose FROM vaccines WHERE name = @name";
             using (var cmd = new SQLiteCommand(sql, Program.DatabaseConnection))
@@ -425,12 +402,26 @@ namespace med
                     }
                     else
                     {
-                        MessageBox.Show($"Вакцина с названием '{vaccineName}' не найдена.\n\n" +
-                            "При добавлении вакцинации вы сможете создать новую вакцину автоматически.",
+                        MessageBox.Show($"Вакцина с названием '{vaccineName}' не найдена!",
                             "Информация", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     }
                 }
             }
+        }
+
+        private void comboBox1_SelectedIndexChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void comboBox2_SelectedIndexChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void comboBox3_SelectedIndexChanged(object sender, EventArgs e)
+        {
+
         }
     }
 }
